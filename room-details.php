@@ -11,7 +11,28 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
     exit();
 }
 
-// ۲. واکشی اطلاعات اصلی و ترجمه شده اتاق از دیتابیس
+// ۲. پردازش فرم ثبت نظر
+$review_message = '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_review'])) {
+    $customer_name = htmlspecialchars($_POST['customer_name']);
+    $rating = intval($_POST['rating']);
+    $comment = htmlspecialchars($_POST['comment']);
+
+    if (!empty($customer_name) && $rating >= 1 && $rating <= 5 && !empty($comment)) {
+        $stmt = $conn->prepare("INSERT INTO room_reviews (room_id, customer_name, rating, comment, status) VALUES (?, ?, ?, ?, 'pending')");
+        $stmt->bind_param("isis", $room_id, $customer_name, $rating, $comment);
+        if ($stmt->execute()) {
+            $review_message = "<div class='bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-6'>نظر شما با موفقیت ثبت شد و پس از تایید ادمین نمایش داده خواهد شد.</div>";
+        } else {
+            $review_message = "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6'>خطایی در ثبت نظر رخ داد.</div>";
+        }
+        $stmt->close();
+    } else {
+        $review_message = "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6'>لطفاً تمام فیلدها را به درستی پر کنید.</div>";
+    }
+}
+
+// ۳. واکشی اطلاعات اصلی و ترجمه شده اتاق از دیتابیس
 $stmt = $conn->prepare("
     SELECT r.price_per_night, rt.name, rt.description
     FROM rooms r
@@ -31,7 +52,7 @@ if ($result->num_rows === 0) {
 $room = $result->fetch_assoc();
 $stmt->close();
 
-// ۳. واکشی تصاویر گالری مربوط به این اتاق
+// ۴. واکشی تصاویر گالری مربوط به این اتاق
 $gallery_stmt = $conn->prepare("SELECT image_url FROM room_images WHERE room_id = ?");
 $gallery_stmt->bind_param("i", $room_id);
 $gallery_stmt->execute();
@@ -46,6 +67,12 @@ $gallery_stmt->close();
 if (empty($gallery_images)) {
     $gallery_images[] = 'default-image.jpg';
 }
+
+// ۵. واکشی نظرات تایید شده برای این اتاق
+$reviews_stmt = $conn->prepare("SELECT * FROM room_reviews WHERE room_id = ? AND status = 'approved' ORDER BY created_at DESC");
+$reviews_stmt->bind_param("i", $room_id);
+$reviews_stmt->execute();
+$reviews_result = $reviews_stmt->get_result();
 ?>
 
 <!-- Room Hero Section -->
@@ -302,3 +329,73 @@ if (empty($gallery_images)) {
         <?php endif; ?>
 
         <!-- Review Form -->
+        <div class="bg-hotel-sand rounded-xl p-8" x-data="{ rating: 0 }" x-intersect="$el.classList.add('animate-fade-in-up')">
+            <h3 class="font-playfair text-2xl font-bold text-hotel-dark mb-6">نظر خود را ثبت کنید</h3>
+            
+            <!-- Display Message -->
+            <?php echo $review_message; ?>
+            
+            <form action="room-details.php?id=<?php echo $room_id; ?>&lang=<?php echo $lang_code; ?>" method="POST" class="space-y-6">
+                <!-- Customer Name -->
+                <div>
+                    <label for="customer_name" class="block text-sm font-semibold text-hotel-dark mb-2">نام شما *</label>
+                    <input type="text" 
+                           id="customer_name" 
+                           name="customer_name" 
+                           required
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-hotel-gold focus:border-transparent transition-colors duration-300"
+                           placeholder="نام کامل خود را وارد کنید">
+                </div>
+
+                <!-- Rating -->
+                <div>
+                    <label class="block text-sm font-semibold text-hotel-dark mb-2">امتیاز شما *</label>
+                    <div class="flex items-center space-x-2 space-x-reverse">
+                        <template x-for="star in [1,2,3,4,5]" :key="star">
+                            <button type="button"
+                                    @click="rating = star"
+                                    :class="star <= rating ? 'text-hotel-gold' : 'text-gray-300'"
+                                    class="text-2xl hover:text-hotel-gold transition-colors duration-200 focus:outline-none">
+                                ★
+                            </button>
+                        </template>
+                        <span x-show="rating > 0" class="text-sm text-gray-600 mr-3">
+                            (<span x-text="rating"></span> از ۵ ستاره)
+                        </span>
+                    </div>
+                    <input type="hidden" name="rating" :value="rating" required>
+                </div>
+
+                <!-- Comment -->
+                <div>
+                    <label for="comment" class="block text-sm font-semibold text-hotel-dark mb-2">نظر شما *</label>
+                    <textarea id="comment" 
+                              name="comment" 
+                              rows="4" 
+                              required
+                              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-hotel-gold focus:border-transparent transition-colors duration-300 resize-none"
+                              placeholder="تجربه خود از این اتاق را با ما به اشتراک بگذارید..."></textarea>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="flex items-center justify-between">
+                    <button type="submit" 
+                            name="submit_review"
+                            :disabled="rating === 0"
+                            :class="rating === 0 ? 'bg-gray-400 cursor-not-allowed' : 'bg-hotel-gold hover:bg-hotel-gold/90'"
+                            class="px-8 py-3 text-hotel-dark font-bold rounded-lg transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-hotel-gold focus:ring-offset-2">
+                        ارسال نظر
+                    </button>
+                    <p class="text-sm text-gray-600">
+                        نظر شما پس از تایید ادمین نمایش داده خواهد شد
+                    </p>
+                </div>
+            </form>
+        </div>
+    </div>
+</section>
+
+<?php 
+$reviews_stmt->close();
+include_once 'includes/footer.php'; 
+?>
