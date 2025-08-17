@@ -172,6 +172,32 @@ if (isset($_GET['edit']) && !empty($_GET['edit'])) {
             <?php endif; ?>
         </div>
 
+        <!-- Categories and Tags -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Categories (Multi-select via chips) -->
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">دسته‌بندی‌ها</label>
+                <div id="categoryChips" class="flex flex-wrap gap-2 min-h-[36px] p-2 bg-gray-50 rounded-lg border border-gray-200"></div>
+                <div class="flex gap-2 mt-2">
+                    <input id="categoryInput" type="text" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-hotel-gold focus:border-transparent transition-colors duration-300" placeholder="مثال: اخبار، راهنما">
+                    <button type="button" onclick="addCategory()" class="px-4 py-2 bg-hotel-gold text-hotel-dark rounded-lg font-semibold hover:bg-hotel-gold/90 transition-colors duration-300">افزودن</button>
+                </div>
+                <input type="hidden" name="categories" id="categoriesField" value="">
+                <p class="text-xs text-gray-500 mt-1">ذخیره‌سازی سمت سرور نیازمند API/DB است؛ فعلاً مقادیر به‌صورت فیلد مخفی ارسال می‌شود.</p>
+            </div>
+
+            <!-- Tags (chips input) -->
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">برچسب‌ها</label>
+                <div id="tagChips" class="flex flex-wrap gap-2 min-h-[36px] p-2 bg-gray-50 rounded-lg border border-gray-200"></div>
+                <div class="flex gap-2 mt-2">
+                    <input id="tagInput" type="text" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-hotel-gold focus:border-transparent transition-colors duration-300" placeholder="هر برچسب را بنویسید و Enter بزنید">
+                    <button type="button" onclick="addTag()" class="px-4 py-2 bg-hotel-gold text-hotel-dark rounded-lg font-semibold hover:bg-hotel-gold/90 transition-colors duration-300">افزودن</button>
+                </div>
+                <input type="hidden" name="tags" id="tagsField" value="">
+            </div>
+        </div>
+
         <!-- Language Tabs -->
         <div x-data="{ activeTab: 'fa' }">
             <div class="border-b border-gray-200 mb-6">
@@ -221,7 +247,7 @@ if (isset($_GET['edit']) && !empty($_GET['edit'])) {
                     <textarea name="translations[fa][content]" 
                               rows="8" 
                               required
-                              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-hotel-gold focus:border-transparent transition-colors duration-300"
+                              class="rich-editor w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-hotel-gold focus:border-transparent transition-colors duration-300"
                               placeholder="محتوای کامل مقاله را اینجا بنویسید..."><?php echo $edit_mode && isset($post_translations['fa']) ? htmlspecialchars($post_translations['fa']['content']) : ''; ?></textarea>
                 </div>
             </div>
@@ -247,7 +273,7 @@ if (isset($_GET['edit']) && !empty($_GET['edit'])) {
                     <label class="block text-sm font-semibold text-gray-700 mb-2">Full Content</label>
                     <textarea name="translations[en][content]" 
                               rows="8"
-                              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-hotel-gold focus:border-transparent transition-colors duration-300"
+                              class="rich-editor w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-hotel-gold focus:border-transparent transition-colors duration-300"
                               placeholder="Write the complete article content here..."><?php echo $edit_mode && isset($post_translations['en']) ? htmlspecialchars($post_translations['en']['content']) : ''; ?></textarea>
                 </div>
             </div>
