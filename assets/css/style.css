@@ -1,0 +1,333 @@
+/* --- متغیرهای رنگ و فونت --- */
+:root {
+    --primary-font: 'Vazirmatn', sans-serif;
+    --heading-font: 'Playfair Display', serif;
+    --color-dark-blue: #0a192f;
+    --color-gold: #ffd700;
+    --color-light-cream: #f5f5f5;
+    --color-white: #ffffff;
+    --header-height: 80px;
+}
+
+/* --- استایل‌های عمومی --- */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    font-family: var(--primary-font);
+    background-color: var(--color-white);
+    color: #333;
+    line-height: 1.7;
+}
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+h1, h2, h3 {
+    font-family: var(--heading-font);
+    font-weight: 700;
+}
+.content-section {
+    padding: 80px 0;
+}
+.section-title {
+    text-align: center;
+    font-size: 3rem;
+    margin-bottom: 50px;
+    color: var(--color-dark-blue);
+    position: relative;
+}
+.section-title::after {
+    content: '';
+    display: block;
+    width: 60px;
+    height: 3px;
+    background-color: var(--color-gold);
+    margin: 10px auto 0;
+}
+
+/* --- دکمه‌های سفارشی --- */
+.btn {
+    display: inline-block;
+    padding: 12px 30px;
+    border-radius: 5px;
+    text-decoration: none;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+.btn-primary {
+    background-color: var(--color-gold);
+    color: var(--color-dark-blue);
+    border: 2px solid var(--color-gold);
+}
+.btn-primary:hover {
+    background-color: transparent;
+    color: var(--color-gold);
+}
+.btn-secondary {
+    background-color: var(--color-dark-blue);
+    color: var(--color-white);
+}
+.btn-secondary:hover {
+    background-color: #1c3d6e;
+}
+
+
+/* --- هدر سایت --- */
+.main-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: var(--header-height);
+    z-index: 1000;
+    background-color: rgba(10, 25, 47, 0.85);
+    backdrop-filter: blur(10px);
+    transition: top 0.3s ease;
+}
+.main-header .container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 100%;
+}
+.logo img {
+    height: 50px;
+}
+.main-nav ul {
+    list-style: none;
+    display: flex;
+}
+.main-nav ul li a {
+    color: var(--color-light-cream);
+    text-decoration: none;
+    padding: 15px;
+    font-size: 1rem;
+    position: relative;
+}
+.main-nav ul li a::after {
+    content: '';
+    position: absolute;
+    bottom: 5px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 2px;
+    background-color: var(--color-gold);
+    transition: width 0.3s ease;
+}
+.main-nav ul li a:hover::after {
+    width: 60%;
+}
+
+[dir="rtl"] .main-nav ul li a::after {
+    left: auto;
+    right: 50%;
+    transform: translateX(50%);
+}
+
+.lang-switcher a {
+    color: var(--color-light-cream);
+    text-decoration: none;
+    margin: 0 5px;
+    padding: 5px;
+}
+.lang-switcher a.active {
+    color: var(--color-gold);
+    font-weight: bold;
+}
+
+/* --- بخش Hero --- */
+.hero-section {
+ height: 150vh; 
+ width: 218.9vh;/* کاهش ارتفاع به 70% ارتفاع viewport */
+ position: relative;
+ display: flex;
+ align-items: center;
+ justify-content: center;
+ text-align: center;
+ color: var(--color-white);
+}
+
+@media (max-width: 768px) {
+ .hero-section {
+  height: 60vh; /* کاهش بیشتر ارتفاع در موبایل */
+ }
+}
+
+.hero-video-bg {
+ position: absolute;
+ top: 0;
+ left: 0;
+ width: 100%;
+ height: 100%;
+ overflow: hidden;
+}
+
+.hero-video-bg video {
+ width: 100%;
+ height: 100%;
+ object-fit: cover;
+}
+
+.hero-overlay {
+ position: absolute;
+ top: 0;
+ left: 0;
+ width: 100%;
+ height: 100%;
+ background-color: rgba(0, 0, 0, 0.5);
+}
+
+.hero-content {
+ position: relative;
+ z-index: 2;
+}
+
+.hero-content h1 {
+ font-size: 4.5rem;
+ margin-bottom: 20px;
+}
+
+.hero-content p {
+ font-size: 1.2rem;
+ max-width: 600px;
+ margin: 0 auto 30px;
+}
+/* --- انیمیشن‌های ورود --- */
+.fade-in-up {
+    opacity: 0;
+    transform: translateY(30px);
+    animation: fadeInUp 0.8s forwards;
+}
+.delay-1 { animation-delay: 0.3s; }
+.delay-2 { animation-delay: 0.6s; }
+
+@keyframes fadeInUp {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+
+/* --- بخش معرفی اتاق‌ها --- */
+.rooms-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 30px;
+}
+.room-card {
+    background-color: #fff;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    border-radius: 10px;
+    overflow: hidden;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.room-card:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+.room-card-image img {
+    width: 100%;
+    height: 220px;
+    object-fit: cover;
+}
+.room-card-content {
+    padding: 25px;
+}
+.room-card-content h3 {
+    color: var(--color-dark-blue);
+    margin-bottom: 10px;
+}
+
+/* --- بخش نظرات --- */
+.testimonials-section {
+    background-color: var(--color-light-cream);
+}
+.testimonial-slider {
+    position: relative;
+    max-width: 800px;
+    margin: 0 auto;
+    text-align: center;
+    overflow: hidden;
+    height: 150px; /* ارتفاع برای نمایش یک نظر */
+}
+.testimonial-item {
+    position: absolute;
+    width: 100%;
+    left: 0;
+    top: 0;
+    opacity: 0;
+    transition: opacity 1s ease-in-out, transform 1s ease-in-out;
+    transform: translateX(100%);
+}
+.testimonial-item.active {
+    opacity: 1;
+    transform: translateX(0);
+}
+.testimonial-item.leaving {
+    transform: translateX(-100%);
+}
+
+[dir="rtl"] .testimonial-item {
+    transform: translateX(-100%);
+}
+[dir="rtl"] .testimonial-item.active {
+    transform: translateX(0);
+}
+[dir="rtl"] .testimonial-item.leaving {
+    transform: translateX(100%);
+}
+
+
+.testimonial-item p {
+    font-size: 1.2rem;
+    font-style: italic;
+    color: #555;
+}
+.testimonial-item cite {
+    display: block;
+    margin-top: 15px;
+    font-weight: bold;
+    color: var(--color-dark-blue);
+}
+
+
+/* --- فوتر --- */
+.main-footer {
+    background-color: var(--color-dark-blue);
+    color: var(--color-light-cream);
+    padding-top: 50px;
+}
+.footer-content {
+    display: flex;
+    justify-content: space-around;
+    padding-bottom: 40px;
+}
+.footer-section h4 {
+    font-family: var(--heading-font);
+    color: var(--color-gold);
+    margin-bottom: 15px;
+}
+.footer-section ul { list-style: none; }
+.footer-section a {
+    color: var(--color-light-cream);
+    text-decoration: none;
+}
+.footer-bottom {
+    text-align: center;
+    padding: 20px 0;
+    border-top: 1px solid #2c3e50;
+}
+
+/* --- انیمیشن نمایش هنگام اسکرول --- */
+.reveal-on-scroll {
+    opacity: 0;
+    transform: translateY(50px);
+    transition: opacity 0.8s, transform 0.8s;
+}
+.reveal-on-scroll.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
