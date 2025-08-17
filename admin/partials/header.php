@@ -1,5 +1,4 @@
-<?php require_once 'auth-check.php'; ?>
-<!DOCTYPE html>
+<?php require_once 'auth-check.php'; ?><!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
