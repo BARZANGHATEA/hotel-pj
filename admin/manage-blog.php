@@ -89,6 +89,17 @@ if (isset($_GET['delete']) && !empty($_GET['delete'])) {
     exit();
 }
 
+// Function to check if a column exists in a table
+function columnExists($conn, $table, $column) {
+    $result = $conn->query("SHOW COLUMNS FROM `$table` LIKE '$column'");
+    return $result && $result->num_rows > 0;
+}
+
+// Check database structure
+$has_status_column = columnExists($conn, 'blog_posts', 'status');
+$has_updated_at_blog = columnExists($conn, 'blog_posts', 'updated_at');
+$has_updated_at_translations = columnExists($conn, 'blog_post_translations', 'updated_at');
+
 // بخش اصلاح شده برای پردازش فرم
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // دیباگ: بررسی داده‌های دریافتی
@@ -157,12 +168,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // ویرایش مقاله موجود
             $post_id = intval($_POST['post_id']);
             
-            $stmt = $conn->prepare("UPDATE blog_posts SET image = ?, categories = ?, tags = ?, status = ?, updated_at = NOW() WHERE id = ?");
+            // Build UPDATE query based on available columns
+            $update_fields = ["image = ?", "categories = ?", "tags = ?"];
+            $update_params = [$image_name, $categories, $tags];
+            $param_types = "sss";
+            
+            if ($has_status_column) {
+                $update_fields[] = "status = ?";
+                $update_params[] = $status;
+                $param_types .= "s";
+            }
+            
+            if ($has_updated_at_blog) {
+                $update_fields[] = "updated_at = NOW()";
+            }
+            
+            $update_query = "UPDATE blog_posts SET " . implode(", ", $update_fields) . " WHERE id = ?";
+            $update_params[] = $post_id;
+            $param_types .= "i";
+            
+            $stmt = $conn->prepare($update_query);
             if (!$stmt) {
                 throw new Exception("خطا در آماده‌سازی کوئری: " . $conn->error);
             }
             
-            $stmt->bind_param("ssssi", $image_name, $categories, $tags, $status, $post_id);
+            $stmt->bind_param($param_types, ...$update_params);
             
             if (!$stmt->execute()) {
                 throw new Exception("خطا در بروزرسانی مقاله: " . $stmt->error);
@@ -181,8 +211,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                     if ($exists) {
                         // بروزرسانی
-                        $update_stmt = $conn->prepare("UPDATE blog_post_translations SET title = ?, summary = ?, content = ?, updated_at = NOW() WHERE post_id = ? AND lang_code = ?");
-                        $update_stmt->bind_param("sssis", $data['title'], $data['summary'], $data['content'], $post_id, $lang);
+                        $trans_update_fields = ["title = ?", "summary = ?", "content = ?"];
+                        $trans_update_params = [$data['title'], $data['summary'], $data['content']];
+                        $trans_param_types = "sss";
+                        
+                        if ($has_updated_at_translations) {
+                            $trans_update_fields[] = "updated_at = NOW()";
+                        }
+                        
+                        $trans_update_query = "UPDATE blog_post_translations SET " . implode(", ", $trans_update_fields) . " WHERE post_id = ? AND lang_code = ?";
+                        $trans_update_params[] = $post_id;
+                        $trans_update_params[] = $lang;
+                        $trans_param_types .= "is";
+                        
+                        $update_stmt = $conn->prepare($trans_update_query);
+                        $update_stmt->bind_param($trans_param_types, ...$trans_update_params);
                         $update_stmt->execute();
                         $update_stmt->close();
                     } else {
@@ -203,12 +246,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new Exception("تصویر شاخص الزامی است.");
             }
             
-            $stmt = $conn->prepare("INSERT INTO blog_posts (image, categories, tags, status, created_at) VALUES (?, ?, ?, ?, NOW())");
+            // Build INSERT query based on available columns
+            $insert_fields = ["image", "categories", "tags", "created_at"];
+            $insert_values = ["?", "?", "?", "NOW()"];
+            $insert_params = [$image_name, $categories, $tags];
+            $param_types = "sss";
+            
+            if ($has_status_column) {
+                $insert_fields[] = "status";
+                $insert_values[] = "?";
+                $insert_params[] = $status;
+                $param_types .= "s";
+            }
+            
+            $insert_query = "INSERT INTO blog_posts (" . implode(", ", $insert_fields) . ") VALUES (" . implode(", ", $insert_values) . ")";
+            
+            $stmt = $conn->prepare($insert_query);
             if (!$stmt) {
                 throw new Exception("خطا در آماده‌سازی کوئری: " . $conn->error);
             }
             
-            $stmt->bind_param("ssss", $image_name, $categories, $tags, $status);
+            $stmt->bind_param($param_types, ...$insert_params);
             
             if (!$stmt->execute()) {
                 throw new Exception("خطا در درج مقاله: " . $stmt->error);
@@ -299,6 +357,45 @@ if (isset($_GET['edit']) && !empty($_GET['edit'])) {
             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
         </svg>
         <?php echo $flash_message; ?>
+    </div>
+</div>
+<?php endif; ?>
+
+<!-- Database Status Warning -->
+<?php if (!$has_status_column || !$has_updated_at_blog || !$has_updated_at_translations): ?>
+<div class="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-lg mb-6">
+    <div class="flex items-start">
+        <svg class="w-5 h-5 ml-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+        </svg>
+        <div>
+            <h4 class="font-semibold mb-2">نیاز به بروزرسانی ساختار پایگاه داده</h4>
+            <p class="text-sm mb-3">برای استفاده کامل از قابلیت انتشار/پیشنویس، ساختار پایگاه داده نیاز به بروزرسانی دارد.</p>
+            <div class="text-sm">
+                <p class="mb-2"><strong>ستون‌های مفقود:</strong></p>
+                <ul class="list-disc list-inside space-y-1">
+                    <?php if (!$has_status_column): ?>
+                        <li>ستون <code>status</code> در جدول <code>blog_posts</code></li>
+                    <?php endif; ?>
+                    <?php if (!$has_updated_at_blog): ?>
+                        <li>ستون <code>updated_at</code> در جدول <code>blog_posts</code></li>
+                    <?php endif; ?>
+                    <?php if (!$has_updated_at_translations): ?>
+                        <li>ستون <code>updated_at</code> در جدول <code>blog_post_translations</code></li>
+                    <?php endif; ?>
+                </ul>
+            </div>
+            <div class="mt-4 flex flex-wrap gap-2">
+                <button onclick="runDatabaseUpdate()" 
+                        class="bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-yellow-700 transition-colors">
+                    اجرای بروزرسانی خودکار
+                </button>
+                <a href="run_db_update.php" target="_blank"
+                   class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors">
+                    اجرای دستی بروزرسانی
+                </a>
+            </div>
+        </div>
     </div>
 </div>
 <?php endif; ?>
@@ -793,5 +890,42 @@ if (isset($_GET['edit']) && !empty($_GET['edit'])) {
     plugins: 'anchor autolink charmap codesample emoticons image link lists media searchreplace table visualblocks wordcount',
     toolbar: 'undo redo | blocks fontfamily fontsize | bold italic underline strikethrough | link image media table | align lineheight | numlist bullist indent outdent | emoticons charmap | removeformat',
   });
-</script>
+
+  // Function to run database update automatically
+  function runDatabaseUpdate() {
+    const button = event.target;
+    const originalText = button.textContent;
+    
+    // Show loading state
+    button.disabled = true;
+    button.textContent = 'در حال بروزرسانی...';
+    button.classList.add('opacity-50');
+    
+    // Execute the update queries
+    fetch('update_database.php', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        alert('پایگاه داده با موفقیت بروزرسانی شد!');
+        // Reload the page to reflect changes
+        window.location.reload();
+      } else {
+        throw new Error(data.error || 'Unknown error');
+      }
+    })
+    .catch(error => {
+      console.error('Database update failed:', error);
+      alert('خطا در بروزرسانی پایگاه داده: ' + error.message + '\nلطفاً بروزرسانی دستی را امتحان کنید.');
+      
+      // Restore button state
+      button.disabled = false;
+      button.textContent = originalText;
+      button.classList.remove('opacity-50');
+    });
+  }
 </script>
