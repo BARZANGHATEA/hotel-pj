@@ -58,10 +58,7 @@ while ($row = $result->fetch_assoc()) {
 }
 $stmt->close();
 
-// Include header after processing all redirects
-include_once 'partials/header.php';
-
-// رسیدگی به درخواست حذف
+ // رسیدگی به درخواست حذف
 if (isset($_GET['delete']) && !empty($_GET['delete'])) {
     $post_id_to_delete = intval($_GET['delete']);
 
@@ -278,35 +275,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // درج ترجمه‌ها
             foreach ($translations as $lang => $data) {
                 if (!empty($data['title']) || !empty($data['content'])) {
-                    $stmt = $conn->prepare("INSERT INTO blog_post_translations (post_id, lang_code, title, summary, content) VALUES (?, ?, ?, ?, ?)");
-                    if (!$stmt) {
-                        throw new Exception("خطا در آماده‌سازی کوئری ترجمه: " . $conn->error);
-                    }
-                    
-                    $stmt->bind_param("issss", $new_post_id, $lang, $data['title'], $data['summary'], $data['content']);
-                    if (!$stmt->execute()) {
-                        throw new Exception("خطا در درج ترجمه: " . $stmt->error);
-                    }
-                    $stmt->close();
-                }
-            }
-            
-            $_SESSION['flash_message'] = "مقاله جدید با موفقیت اضافه شد.";
-        }
-        
-        $conn->commit();
-        
-    } catch (Exception $e) {
-        $conn->rollback();
-        error_log("Blog form error: " . $e->getMessage());
-        $_SESSION['flash_message'] = "خطا: " . $e->getMessage();
-    }
-    
-    header("Location: manage-blog.php");
-    exit();
-}
-
-// حالت ویرایش
 if (isset($_GET['edit']) && !empty($_GET['edit'])) {
     $edit_mode = true;
     $post_id_to_edit = intval($_GET['edit']);
