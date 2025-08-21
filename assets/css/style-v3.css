@@ -54,7 +54,7 @@ body:has(a:hover) .cursor-follower, body:has(button:hover) .cursor-follower {
 .link-with-arrow:hover::after { margin-right: 15px; }
 
 /* --- بخش Hero --- */
-.hero-section-v3 { min-height: 100vh; display: flex; align-items: center; padding-top: 100px; }
+.hero-section-v3 { min-height: 0vh; display: flex; align-items: center; padding-top: 100px; }
 .hero-layout { display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 50px; }
 .hero-text-content .tagline { font-family: var(--font-heading); margin-bottom: 20px; }
 .hero-title-v3 { font-family: var(--font-heading); font-size: 5vw; line-height: 1.1; overflow: hidden; }

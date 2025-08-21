@@ -1,4 +1,5 @@
-<?php require_once 'auth-check.php'; ?><!DOCTYPE html>
+<?php require_once 'auth-check.php'; ?>
+<!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -24,6 +25,7 @@
     <style>
         body { font-family: 'Vazirmatn', sans-serif; }
     </style>
+    <script src="https://cdn.tiny.cloud/1/3fhpj4fbwaga5z3i2uk4yyi9bbfzl62i3nnykuzxyesrio3v/tinymce/8/tinymce.min.js" referrerpolicy="origin"></script>
 </head>
 <body class="bg-gray-50" x-data="{ sidebarOpen: false }">
     <!-- Mobile Sidebar Overlay -->

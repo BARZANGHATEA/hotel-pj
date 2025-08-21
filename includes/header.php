@@ -138,11 +138,6 @@ $page_dir = ($lang_code === 'fa') ? 'rtl' : 'ltr';
                         <?php echo $lang['nav_home']; ?>
                         <span class="absolute bottom-0 left-0 w-0 h-0.5 bg-hotel-gold transition-all duration-300 group-hover:w-full"></span>
                     </a>
-                    <a href="about.php?lang=<?php echo $lang_code; ?>" 
-                       class="text-hotel-cream hover:text-hotel-gold transition-colors duration-300 relative group px-3 py-2">
-                        درباره ما
-                        <span class="absolute bottom-0 left-0 w-0 h-0.5 bg-hotel-gold transition-all duration-300 group-hover:w-full"></span>
-                    </a>
                     <a href="rooms.php?lang=<?php echo $lang_code; ?>" 
                        class="text-hotel-cream hover:text-hotel-gold transition-colors duration-300 relative group px-3 py-2">
                         <?php echo $lang['nav_rooms']; ?>
@@ -151,6 +146,11 @@ $page_dir = ($lang_code === 'fa') ? 'rtl' : 'ltr';
                     <a href="blog.php?lang=<?php echo $lang_code; ?>" 
                        class="text-hotel-cream hover:text-hotel-gold transition-colors duration-300 relative group px-3 py-2">
                         <?php echo $lang['nav_blog']; ?>
+                        <span class="absolute bottom-0 left-0 w-0 h-0.5 bg-hotel-gold transition-all duration-300 group-hover:w-full"></span>
+                    </a>
+                    <a href="about.php?lang=<?php echo $lang_code; ?>" 
+                       class="text-hotel-cream hover:text-hotel-gold transition-colors duration-300 relative group px-3 py-2">
+                        درباره ما
                         <span class="absolute bottom-0 left-0 w-0 h-0.5 bg-hotel-gold transition-all duration-300 group-hover:w-full"></span>
                     </a>
                     <a href="contact.php?lang=<?php echo $lang_code; ?>" 

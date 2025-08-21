@@ -10,7 +10,7 @@
     <!-- Hero Content -->
     <div class="relative z-10 text-center text-white px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
         <h1 class="font-playfair text-4xl sm:text-5xl md:text-6xl font-bold mb-6 fade-in-up opacity-0">
-            وبلاگ هتل پالاس
+            وبلاگ هتل سیروان
         </h1>
         <p class="text-lg sm:text-xl md:text-2xl mb-8 max-w-2xl mx-auto leading-relaxed fade-in-up opacity-0 delay-1">
             داستان‌ها، راهنماها و آخرین اخبار از دنیای ما

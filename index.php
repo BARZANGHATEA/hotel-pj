@@ -4,7 +4,7 @@
 <section class="relative min-h-screen flex items-center justify-center overflow-hidden">
     <!-- Video Background -->
     <div class="absolute inset-0 w-full h-full">
-        <video autoplay muted loop poster="assets/images/hero-poster1.jpg" class="w-full h-full object-cover">
+        <video autoplay muted loop poster="assets/images/hero-poster1.png" class="w-full h-full object-cover">
             <source src="assets/videos/hotel-intro.mp4" type="video/mp4">
         </video>
     </div>

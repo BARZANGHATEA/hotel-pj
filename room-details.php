@@ -32,9 +32,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_review'])) {
     }
 }
 
-// ۳. واکشی اطلاعات اصلی و ترجمه شده اتاق از دیتابیس
+// ۳. واکشی اطلاعات اصلی و ترجمه شده اتاق از دیتابیس (include video_url)
 $stmt = $conn->prepare("
-    SELECT r.price_per_night, rt.name, rt.description
+    SELECT r.price_per_night, r.video_url, rt.name, rt.description
     FROM rooms r
     JOIN room_translations rt ON r.id = rt.room_id
     WHERE r.id = ? AND rt.lang_code = ?
@@ -52,16 +52,28 @@ if ($result->num_rows === 0) {
 $room = $result->fetch_assoc();
 $stmt->close();
 
-// ۴. واکشی تصاویر گالری مربوط به این اتاق
-$gallery_stmt = $conn->prepare("SELECT image_url FROM room_images WHERE room_id = ?");
-$gallery_stmt->bind_param("i", $room_id);
-$gallery_stmt->execute();
-$gallery_result = $gallery_stmt->get_result();
+// ۴. واکشی تصاویر گالری مربوط به این اتاق از new table first, fallback to room_images
 $gallery_images = [];
-while ($row = $gallery_result->fetch_assoc()) {
-    $gallery_images[] = $row['image_url'];
+$gstmt = $conn->prepare("SELECT image_path FROM room_gallery_images WHERE room_id = ? ORDER BY sort_order ASC");
+$gstmt->bind_param("i", $room_id);
+$gstmt->execute();
+$gresult = $gstmt->get_result();
+while ($r = $gresult->fetch_assoc()) {
+    $gallery_images[] = $r['image_path'];
 }
-$gallery_stmt->close();
+$gstmt->close();
+
+if (empty($gallery_images)) {
+    // fallback to legacy table
+    $gallery_stmt = $conn->prepare("SELECT image_url FROM room_images WHERE room_id = ?");
+    $gallery_stmt->bind_param("i", $room_id);
+    $gallery_stmt->execute();
+    $gallery_result = $gallery_stmt->get_result();
+    while ($row = $gallery_result->fetch_assoc()) {
+        $gallery_images[] = $row['image_url'];
+    }
+    $gallery_stmt->close();
+}
 
 // اگر تصویری وجود نداشت، تصویر پیش‌فرض اضافه کن
 if (empty($gallery_images)) {
@@ -101,52 +113,63 @@ $reviews_result = $reviews_stmt->get_result();
     </div>
 </section>
 
-<!-- Room Gallery Section -->
+<!-- Room Gallery & Video Section -->
 <section class="py-20 bg-white">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <!-- Main Image -->
-        <div class="mb-8" x-data="{ currentImage: '<?php echo htmlspecialchars($gallery_images[0]); ?>' }">
-            <div class="relative h-96 lg:h-[500px] rounded-xl overflow-hidden shadow-2xl">
-                <img :src="'uploads/rooms/' + currentImage" 
-                     alt="<?php echo htmlspecialchars($room['name']); ?>"
-                     class="w-full h-full object-cover transition-all duration-500">
-                
-                <!-- Image Navigation -->
-                <?php if (count($gallery_images) > 1): ?>
-                <div class="absolute inset-y-0 left-4 flex items-center">
-                    <button @click="currentImage = '<?php echo htmlspecialchars($gallery_images[array_search($currentImage ?? $gallery_images[0], $gallery_images) - 1] ?? end($gallery_images)); ?>'"
-                            class="bg-black/50 text-white p-3 rounded-full hover:bg-black/70 transition-colors duration-300">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-                        </svg>
-                    </button>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+            <!-- Main Image + Lightbox -->
+            <div class="lg:col-span-2" x-data="{ currentIndex: 0 }">
+                <div class="mb-6 relative rounded-xl overflow-hidden shadow-2xl">
+                    <img id="mainGalleryImage" src="uploads/rooms/<?php echo htmlspecialchars($gallery_images[0]); ?>" class="w-full h-96 lg:h-[520px] object-cover">
+                    <button id="openLightboxBtn" class="absolute top-4 left-4 bg-white/80 text-gray-800 px-3 py-2 rounded">View</button>
                 </div>
-                <div class="absolute inset-y-0 right-4 flex items-center">
-                    <button @click="currentImage = '<?php echo htmlspecialchars($gallery_images[array_search($currentImage ?? $gallery_images[0], $gallery_images) + 1] ?? $gallery_images[0]); ?>'"
-                            class="bg-black/50 text-white p-3 rounded-full hover:bg-black/70 transition-colors duration-300">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                        </svg>
-                    </button>
+
+                <!-- Thumbnails -->
+                <div class="flex space-x-4 space-x-reverse mt-4 overflow-x-auto pb-2">
+                    <?php foreach ($gallery_images as $index => $image): ?>
+                        <button class="thumb-btn" data-index="<?php echo $index; ?>">
+                            <img src="uploads/rooms/<?php echo htmlspecialchars($image); ?>" class="w-24 h-24 object-cover rounded-lg">
+                        </button>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+
+            <!-- Video Section -->
+            <div>
+                <?php if (!empty($room['video_url'])): ?>
+                <div class="bg-hotel-sand rounded-xl p-6 sticky top-24">
+                    <h3 class="font-playfair text-xl font-bold mb-4">ویدیو معرفی</h3>
+                    <div class="video-wrapper aspect-w-16 aspect-h-9 rounded overflow-hidden bg-black">
+                        <?php
+                        // simple parser for youtube/vimeo
+                        $video = trim($room['video_url']);
+                        $embed = '';
+                        if (preg_match('/youtube\.com\/watch\?v=([A-Za-z0-9_-]+)/', $video, $m) || preg_match('/youtu\.be\/([A-Za-z0-9_-]+)/', $video, $m)) {
+                            $vid = $m[1];
+                            $embed = "https://www.youtube.com/embed/" . $vid;
+                        } elseif (preg_match('/vimeo\.com\/(\d+)/', $video, $m)) {
+                            $vid = $m[1];
+                            $embed = "https://player.vimeo.com/video/" . $vid;
+                        }
+                        if ($embed):
+                        ?>
+                        <iframe src="<?php echo $embed; ?>" frameborder="0" allowfullscreen class="w-full h-full"></iframe>
+                        <?php else: ?>
+                        <p class="text-gray-600">آدرس ویدیو معتبر نیست یا شناخته نمی‌شود.</p>
+                        <?php endif; ?>
+                    </div>
                 </div>
                 <?php endif; ?>
             </div>
-            
-            <!-- Thumbnail Gallery -->
-            <?php if (count($gallery_images) > 1): ?>
-            <div class="flex space-x-4 space-x-reverse mt-6 overflow-x-auto pb-2">
-                <?php foreach ($gallery_images as $index => $image): ?>
-                <button @click="currentImage = '<?php echo htmlspecialchars($image); ?>'"
-                        :class="currentImage === '<?php echo htmlspecialchars($image); ?>' ? 'ring-4 ring-hotel-gold' : 'ring-2 ring-gray-200'"
-                        class="flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden transition-all duration-300 hover:ring-hotel-gold">
-                    <img src="uploads/rooms/<?php echo htmlspecialchars($image); ?>" 
-                         alt="تصویر <?php echo $index + 1; ?>"
-                         class="w-full h-full object-cover">
-                </button>
-                <?php endforeach; ?>
-            </div>
-            <?php endif; ?>
         </div>
+    </div>
+
+    <!-- Lightbox Modal -->
+    <div id="lightbox" class="hidden fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+        <button id="closeLightbox" class="absolute top-6 right-6 text-white text-2xl">×</button>
+        <button id="prevImg" class="absolute left-6 text-white text-3xl">‹</button>
+        <img id="lightboxImg" src="" class="max-w-full max-h-full rounded-lg">
+        <button id="nextImg" class="absolute right-6 text-white text-3xl">›</button>
     </div>
 </section>
 
@@ -394,6 +417,37 @@ $reviews_result = $reviews_stmt->get_result();
         </div>
     </div>
 </section>
+
+<script>
+// Simple gallery + lightbox logic
+(function(){
+    const thumbs = document.querySelectorAll('.thumb-btn');
+    const main = document.getElementById('mainGalleryImage');
+    const openBtn = document.getElementById('openLightboxBtn');
+    const lightbox = document.getElementById('lightbox');
+    const lbImg = document.getElementById('lightboxImg');
+    const closeBtn = document.getElementById('closeLightbox');
+    const prevBtn = document.getElementById('prevImg');
+    const nextBtn = document.getElementById('nextImg');
+    let current = 0;
+    const images = <?php echo json_encode($gallery_images); ?>;
+
+    thumbs.forEach(b => b.addEventListener('click', function(){
+        const idx = parseInt(this.getAttribute('data-index'));
+        current = idx;
+        main.src = 'uploads/rooms/' + images[current];
+    }));
+
+    openBtn.addEventListener('click', function(){
+        lbImg.src = 'uploads/rooms/' + images[current];
+        lightbox.classList.remove('hidden');
+    });
+    closeBtn.addEventListener('click', function(){ lightbox.classList.add('hidden'); });
+    prevBtn.addEventListener('click', function(){ current = (current - 1 + images.length) % images.length; lbImg.src = 'uploads/rooms/' + images[current]; main.src = 'uploads/rooms/' + images[current]; });
+    nextBtn.addEventListener('click', function(){ current = (current + 1) % images.length; lbImg.src = 'uploads/rooms/' + images[current]; main.src = 'uploads/rooms/' + images[current]; });
+
+})();
+</script>
 
 <?php 
 $reviews_stmt->close();

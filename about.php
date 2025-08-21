@@ -10,7 +10,7 @@
     <!-- Hero Content -->
     <div class="relative z-10 text-center text-white px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
         <h1 class="font-playfair text-4xl sm:text-5xl md:text-6xl font-bold mb-6 fade-in-up opacity-0">
-            درباره هتل پالاس
+            درباره هتل سیروان
         </h1>
         <p class="text-lg sm:text-xl md:text-2xl mb-8 max-w-2xl mx-auto leading-relaxed fade-in-up opacity-0 delay-1">
             تجربه‌ای لوکس و بی‌نظیر در قلب شهر
@@ -29,7 +29,7 @@
                     داستان ما
                 </h2>
                 <p class="text-gray-700 leading-relaxed text-lg">
-                    هتل پالاس از سال ۱۳۸۰ با هدف ارائه بهترین خدمات مهمان‌نوازی در تهران تأسیس شد. ما با ترکیب معماری کلاسیک و امکانات مدرن، فضایی منحصر به فرد برای اقامت شما فراهم کرده‌ایم.
+                    هتل سیروان از سال ۱۳۸۰ با هدف ارائه بهترین خدمات مهمان‌نوازی در تهران تأسیس شد. ما با ترکیب معماری کلاسیک و امکانات مدرن، فضایی منحصر به فرد برای اقامت شما فراهم کرده‌ایم.
                 </p>
                 <p class="text-gray-700 leading-relaxed text-lg">
                     تیم مجرب ما با بیش از ۲۰ سال تجربه در صنعت هتل‌داری، همواره در تلاش است تا لحظات فراموش‌نشدنی برای مهمانان عزیز خود خلق کند.
@@ -223,7 +223,7 @@
                 آماده تجربه اقامتی فراموش‌نشدنی هستید؟
             </h2>
             <p class="text-white/90 text-lg mb-8 leading-relaxed">
-                همین امروز اتاق خود را رزرو کنید و از خدمات بی‌نظیر هتل پالاس لذت ببرید
+                همین امروز اتاق خود را رزرو کنید و از خدمات بی‌نظیر هتل سیروان لذت ببرید
             </p>
             <div class="flex flex-col sm:flex-row gap-4 justify-center">
                 <a href="rooms.php?lang=<?php echo $lang_code; ?>" 

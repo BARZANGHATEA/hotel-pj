@@ -6,7 +6,7 @@
             <div class="space-y-4">
                 <div class="flex items-center space-x-3 <?php echo $page_dir === 'rtl' ? 'space-x-reverse' : ''; ?>">
                     <img src="assets/images/logo-gold.png" alt="Hotel Logo" class="h-10 w-auto">
-                    <h3 class="font-playfair text-xl font-bold text-hotel-gold">هتل پالاس</h3>
+                    <h3 class="font-playfair text-xl font-bold text-hotel-gold">هتل سیروان</h3>
                 </div>
                 <p class="text-hotel-cream/80 leading-relaxed">
                     تجربه‌ای لوکس و بی‌نظیر در قلب شهر با خدمات درجه یک و امکانات مدرن.
@@ -126,7 +126,7 @@
         <!-- Footer Bottom -->
         <div class="border-t border-hotel-cream/20 mt-12 pt-8 text-center">
             <p class="text-hotel-cream/60">
-                &copy; 2025 هتل پالاس. تمام حقوق محفوظ است. | طراحی و توسعه با ❤️
+                &copy; 2025 هتل سیروان. تمام حقوق محفوظ است. | طراحی و توسعه با ❤️
             </p>
         </div>
     </div>

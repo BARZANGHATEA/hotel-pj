@@ -184,7 +184,7 @@
             <!-- Offer 1 -->
             <div class="bg-white rounded-xl shadow-lg overflow-hidden transform hover:scale-105 transition-all duration-300"
                  x-data x-intersect="$el.classList.add('animate-fade-in-up')">
-                <div class="bg-gradient-to-r from-hotel-gold to-hotel-blue p-6 text-white text-center">
+                <div class="bg-gradient-to-r from-hotel-blue to-hotel-dark p-6 text-white text-center">
                     <h3 class="font-playfair text-2xl font-bold mb-2">پکیج عاشقان</h3>
                     <p class="text-lg">۲۰% تخفیف برای اقامت دو شب</p>
                 </div>
@@ -252,7 +252,7 @@
             <!-- Offer 3 -->
             <div class="bg-white rounded-xl shadow-lg overflow-hidden transform hover:scale-105 transition-all duration-300"
                  x-data x-intersect="$el.classList.add('animate-fade-in-up')">
-                <div class="bg-gradient-to-r from-hotel-dark to-hotel-gold p-6 text-white text-center">
+                <div class="bg-gradient-to-r from-hotel-blue to-hotel-dark p-6 text-white text-center">
                     <h3 class="font-playfair text-2xl font-bold mb-2">پکیج تجاری</h3>
                     <p class="text-lg">۱۰% تخفیف برای مسافران کاری</p>
                 </div>

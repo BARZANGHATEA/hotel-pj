@@ -2,11 +2,12 @@
 -- This file contains the SQL commands to enhance the rooms module with gallery and video functionality
 
 -- 1. Add video_url column to existing rooms table
+-- Note: If your MySQL version supports IF NOT EXISTS (MySQL 8+), it will avoid errors when the column already exists.
 ALTER TABLE rooms ADD COLUMN video_url VARCHAR(255) NULL AFTER price_per_night;
 
 -- 2. Create new room_gallery_images table for proper gallery management
 -- Note: We'll keep the existing room_images table for backward compatibility
-CREATE TABLE room_gallery_images (
+CREATE TABLE IF NOT EXISTS room_gallery_images (
     id INT PRIMARY KEY AUTO_INCREMENT,
     room_id INT NOT NULL,
     image_path VARCHAR(255) NOT NULL,

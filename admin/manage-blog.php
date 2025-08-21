@@ -89,52 +89,159 @@ if (isset($_GET['delete']) && !empty($_GET['delete'])) {
     exit();
 }
 
-// پردازش فرم
+// بخش اصلاح شده برای پردازش فرم
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $translations = $_POST['translations'];
+    // دیباگ: بررسی داده‌های دریافتی
+    error_log("POST Data: " . print_r($_POST, true));
+    error_log("FILES Data: " . print_r($_FILES, true));
+    
+    $translations = $_POST['translations'] ?? [];
     $categories = $_POST['categories'] ?? '';
     $tags = $_POST['tags'] ?? '';
+    
+    // تشخیص وضعیت انتشار بر اساس دکمه کلیک شده
+    if (isset($_POST['publish'])) {
+        $status = 'published';
+    } elseif (isset($_POST['save_draft'])) {
+        $status = 'draft';
+    } else {
+        $status = 'draft'; // پیش‌فرض
+    }
+    
+    // بررسی داده‌های ضروری
+    $has_persian_content = !empty($translations['fa']['title']) && !empty($translations['fa']['content']);
+    
+    if (!$has_persian_content) {
+        $_SESSION['flash_message'] = "خطا: عنوان و محتوای فارسی الزامی است.";
+        header("Location: manage-blog.php");
+        exit();
+    }
 
     // مدیریت آپلود تصویر شاخص
     $image_name = $_POST['existing_image'] ?? '';
-    if (isset($_FILES['image']) && $_FILES['image']['error'] === 0) {
+    
+    if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
         $upload_dir = '../uploads/blog/';
-        $image_name = time() . '_' . basename($_FILES['image']['name']);
-        move_uploaded_file($_FILES['image']['tmp_name'], $upload_dir . $image_name);
+        
+        // بررسی وجود پوشه و ایجاد آن در صورت عدم وجود
+        if (!is_dir($upload_dir)) {
+            mkdir($upload_dir, 0755, true);
+        }
+        
+        // تولید نام فایل یکتا
+        $file_extension = pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION);
+        $image_name = time() . '_' . uniqid() . '.' . $file_extension;
+        
+        // بررسی نوع فایل
+        $allowed_types = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+        if (in_array(strtolower($file_extension), $allowed_types)) {
+            if (move_uploaded_file($_FILES['image']['tmp_name'], $upload_dir . $image_name)) {
+                // آپلود موفق
+                error_log("Image uploaded successfully: " . $image_name);
+            } else {
+                $_SESSION['flash_message'] = "خطا در آپلود تصویر.";
+                header("Location: manage-blog.php");
+                exit();
+            }
+        } else {
+            $_SESSION['flash_message'] = "نوع فایل مجاز نیست. فقط JPG, PNG, GIF, WEBP مجاز است.";
+            header("Location: manage-blog.php");
+            exit();
+        }
     }
 
-    if (isset($_POST['post_id']) && !empty($_POST['post_id'])) {
-        // ویرایش
-        $post_id = intval($_POST['post_id']);
-        $stmt = $conn->prepare("UPDATE blog_posts SET image = ?, categories = ?, tags = ? WHERE id = ?");
-        $stmt->bind_param("sssi", $image_name, $categories, $tags, $post_id);
-        $stmt->execute();
-        $stmt->close();
-
-        // به‌روزرسانی ترجمه‌ها
-        foreach ($translations as $lang => $data) {
-            $stmt = $conn->prepare("UPDATE blog_post_translations SET title = ?, summary = ?, content = ? WHERE post_id = ? AND lang_code = ?");
-            $stmt->bind_param("sssis", $data['title'], $data['summary'], $data['content'], $post_id, $lang);
-            $stmt->execute();
+    try {
+        $conn->begin_transaction();
+        
+        if (isset($_POST['post_id']) && !empty($_POST['post_id'])) {
+            // ویرایش مقاله موجود
+            $post_id = intval($_POST['post_id']);
+            
+            $stmt = $conn->prepare("UPDATE blog_posts SET image = ?, categories = ?, tags = ?, status = ?, updated_at = NOW() WHERE id = ?");
+            if (!$stmt) {
+                throw new Exception("خطا در آماده‌سازی کوئری: " . $conn->error);
+            }
+            
+            $stmt->bind_param("ssssi", $image_name, $categories, $tags, $status, $post_id);
+            
+            if (!$stmt->execute()) {
+                throw new Exception("خطا در بروزرسانی مقاله: " . $stmt->error);
+            }
             $stmt->close();
-        }
-        $_SESSION['flash_message'] = "مقاله با موفقیت به‌روزرسانی شد.";
-    } else {
-        // افزودن
-        $stmt = $conn->prepare("INSERT INTO blog_posts (image, categories, tags) VALUES (?, ?, ?)");
-        $stmt->bind_param("sss", $image_name, $categories, $tags);
-        $stmt->execute();
-        $new_post_id = $stmt->insert_id;
-        $stmt->close();
 
-        // درج ترجمه‌ها
-        foreach ($translations as $lang => $data) {
-            $stmt = $conn->prepare("INSERT INTO blog_post_translations (post_id, lang_code, title, summary, content) VALUES (?, ?, ?, ?, ?)");
-            $stmt->bind_param("issss", $new_post_id, $lang, $data['title'], $data['summary'], $data['content']);
-            $stmt->execute();
+            // بروزرسانی ترجمه‌ها
+            foreach ($translations as $lang => $data) {
+                if (!empty($data['title']) || !empty($data['content'])) {
+                    // بررسی وجود ترجمه
+                    $check_stmt = $conn->prepare("SELECT id FROM blog_post_translations WHERE post_id = ? AND lang_code = ?");
+                    $check_stmt->bind_param("is", $post_id, $lang);
+                    $check_stmt->execute();
+                    $exists = $check_stmt->get_result()->fetch_assoc();
+                    $check_stmt->close();
+                    
+                    if ($exists) {
+                        // بروزرسانی
+                        $update_stmt = $conn->prepare("UPDATE blog_post_translations SET title = ?, summary = ?, content = ?, updated_at = NOW() WHERE post_id = ? AND lang_code = ?");
+                        $update_stmt->bind_param("sssis", $data['title'], $data['summary'], $data['content'], $post_id, $lang);
+                        $update_stmt->execute();
+                        $update_stmt->close();
+                    } else {
+                        // درج جدید
+                        $insert_stmt = $conn->prepare("INSERT INTO blog_post_translations (post_id, lang_code, title, summary, content) VALUES (?, ?, ?, ?, ?)");
+                        $insert_stmt->bind_param("issss", $post_id, $lang, $data['title'], $data['summary'], $data['content']);
+                        $insert_stmt->execute();
+                        $insert_stmt->close();
+                    }
+                }
+            }
+            
+            $_SESSION['flash_message'] = "مقاله با موفقیت به‌روزرسانی شد.";
+            
+        } else {
+            // افزودن مقاله جدید
+            if (empty($image_name) && !isset($_FILES['image'])) {
+                throw new Exception("تصویر شاخص الزامی است.");
+            }
+            
+            $stmt = $conn->prepare("INSERT INTO blog_posts (image, categories, tags, status, created_at) VALUES (?, ?, ?, ?, NOW())");
+            if (!$stmt) {
+                throw new Exception("خطا در آماده‌سازی کوئری: " . $conn->error);
+            }
+            
+            $stmt->bind_param("ssss", $image_name, $categories, $tags, $status);
+            
+            if (!$stmt->execute()) {
+                throw new Exception("خطا در درج مقاله: " . $stmt->error);
+            }
+            
+            $new_post_id = $stmt->insert_id;
             $stmt->close();
+
+            // درج ترجمه‌ها
+            foreach ($translations as $lang => $data) {
+                if (!empty($data['title']) || !empty($data['content'])) {
+                    $stmt = $conn->prepare("INSERT INTO blog_post_translations (post_id, lang_code, title, summary, content) VALUES (?, ?, ?, ?, ?)");
+                    if (!$stmt) {
+                        throw new Exception("خطا در آماده‌سازی کوئری ترجمه: " . $conn->error);
+                    }
+                    
+                    $stmt->bind_param("issss", $new_post_id, $lang, $data['title'], $data['summary'], $data['content']);
+                    if (!$stmt->execute()) {
+                        throw new Exception("خطا در درج ترجمه: " . $stmt->error);
+                    }
+                    $stmt->close();
+                }
+            }
+            
+            $_SESSION['flash_message'] = "مقاله جدید با موفقیت اضافه شد.";
         }
-        $_SESSION['flash_message'] = "مقاله جدید با موفقیت اضافه شد.";
+        
+        $conn->commit();
+        
+    } catch (Exception $e) {
+        $conn->rollback();
+        error_log("Blog form error: " . $e->getMessage());
+        $_SESSION['flash_message'] = "خطا: " . $e->getMessage();
     }
     
     header("Location: manage-blog.php");
@@ -164,7 +271,7 @@ if (isset($_GET['edit']) && !empty($_GET['edit'])) {
 ?>
 
 <!-- TinyMCE Rich Text Editor -->
-<script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+<script src="https://cdn.tiny.cloud/1/3fhpj4fbwaga5z3i2uk4yyi9bbfzl62i3nnykuzxyesrio3v/tinymce/8/tinymce.min.js" referrerpolicy="origin"></script>
 
 <!-- Page Header -->
 <div class="flex items-center justify-between mb-8">
@@ -422,30 +529,9 @@ if (isset($_GET['edit']) && !empty($_GET['edit'])) {
         </div>
 
         <!-- Form Actions -->
-        <div class="flex items-center justify-between pt-6 border-t border-gray-200">
-            <div class="flex items-center space-x-4 space-x-reverse">
-                <?php if ($edit_mode): ?>
-                    <a href="manage-blog.php" 
-                       class="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors duration-300">
-                        انصراف
-                    </a>
-                <?php else: ?>
-                    <button type="button" onclick="toggleForm()" 
-                            class="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors duration-300">
-                        انصراف
-                    </button>
-                <?php endif; ?>
-                
-                <button type="button" onclick="saveDraft()" 
-                        class="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors duration-300">
-                    ذخیره پیش‌نویس
-                </button>
-            </div>
-            
-            <button type="submit" 
-                    class="px-8 py-3 bg-hotel-gold text-hotel-dark rounded-lg font-semibold hover:bg-hotel-gold/90 transition-colors duration-300">
-                <?php echo $edit_mode ? 'به‌روزرسانی مقاله' : 'انتشار مقاله'; ?>
-            </button>
+        <div class="flex items-center justify-end gap-4 pt-6 border-t border-gray-200">
+            <button type="submit" name="save_draft" value="1" class="bg-gray-300 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-400 transition-colors">ذخیره پیشنویس</button>
+            <button type="submit" name="publish" value="1" class="bg-hotel-gold text-hotel-dark px-6 py-3 rounded-lg font-semibold hover:bg-hotel-gold/90 transition-colors">انتشار</button>
         </div>
     </form>
 </div>
@@ -699,3 +785,13 @@ if (isset($_GET['edit']) && !empty($_GET['edit'])) {
 </style>
 
 <?php include_once 'partials/footer.php'; ?>
+
+<!-- TinyMCE Integration -->
+<script>
+  tinymce.init({
+    selector: '.rich-editor',
+    plugins: 'anchor autolink charmap codesample emoticons image link lists media searchreplace table visualblocks wordcount',
+    toolbar: 'undo redo | blocks fontfamily fontsize | bold italic underline strikethrough | link image media table | align lineheight | numlist bullist indent outdent | emoticons charmap | removeformat',
+  });
+</script>
+</script>
