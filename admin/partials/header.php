@@ -60,7 +60,7 @@ $admin_nav = [
 
     <!-- Sidebar -->
     <div :class="sidebarOpen ? 'translate-x-0' : 'translate-x-full'"
-         class="fixed inset-y-0 right-0 z-50 w-64 bg-hotel-dark transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0">
+         class="fixed inset-y-0 right-0 z-50 w-64 bg-hotel-dark transform transition-transform duration-300 ease-in-out lg:translate-x-0">
         
         <!-- Sidebar Header -->
         <div class="flex items-center justify-between h-16 px-6 bg-hotel-dark border-b border-gray-700">

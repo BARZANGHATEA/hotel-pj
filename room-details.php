@@ -134,7 +134,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             $_SESSION['room_flash'] = [
                 'form' => 'booking',
-                'msg'  => 'درخواست رزرو شما ثبت شد' . ($reference ? ' (کد پیگیری: ' . $reference . ')' : '') . '. همکاران ما برای تایید نهایی با شما تماس خواهند گرفت.',
+                'msg'  => 'درخواست رزرو شما ثبت شد. همکاران ما برای تایید نهایی با شما تماس خواهند گرفت.',
+                'ref'  => $reference,
             ];
             header('Location: ' . $self_url . '#booking');
             exit();
@@ -369,7 +370,12 @@ include_once 'includes/header.php';
                     <h4 class="font-playfair text-xl font-bold text-hotel-dark mb-4">درخواست رزرو آنلاین</h4>
 
                     <?php if ($flash && $flash['form'] === 'booking'): ?>
-                        <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-6 text-sm"><?php echo e($flash['msg']); ?></div>
+                        <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-6 text-sm">
+                            <?php echo e($flash['msg']); ?>
+                            <?php if (!empty($flash['ref'])): ?>
+                                <div class="mt-2 font-semibold">کد پیگیری: <bdi dir="ltr" class="font-mono whitespace-nowrap"><?php echo e($flash['ref']); ?></bdi></div>
+                            <?php endif; ?>
+                        </div>
                     <?php endif; ?>
                     <?php if ($booking_errors): ?>
                         <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6 text-sm">
