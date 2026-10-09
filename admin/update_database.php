@@ -1,13 +1,7 @@
 <?php
-require_once '../config/db.php';
+require_once 'auth-check.php'; // فقط ادمین وارد شده
+verify_csrf();
 
-// Check if user is admin
-session_start();
-if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
-    http_response_code(403);
-    echo json_encode(['error' => 'Unauthorized']);
-    exit;
-}
 
 // Set content type to JSON
 header('Content-Type: application/json');

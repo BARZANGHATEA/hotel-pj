@@ -120,7 +120,7 @@
                 SELECT p.id, p.image, p.created_at, pt.title, pt.summary
                 FROM blog_posts p
                 JOIN blog_post_translations pt ON p.id = pt.post_id
-                WHERE pt.lang_code = ?
+                WHERE pt.lang_code = ? AND p.status = 'published'
                 ORDER BY p.created_at DESC
             ");
             $stmt->bind_param("s", $lang_code);

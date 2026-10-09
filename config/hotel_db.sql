@@ -117,7 +117,7 @@ CREATE TABLE `blog_post_translations` (
 -- Dumping data for table `blog_post_translations`
 --
 
-INSERT INTO `blog_post_translations` (`id`, `post_id`, `lang_code`, `title`, `content`, `summary`, `updated_at`) VALUES
+INSERT INTO `blog_post_translations` (`id`, `post_id`, `lang_code`, `title`, `content`, `summary`) VALUES
 (7, 3, 'fa', 'حالاچه بخشهایی باقی موندهحالاچه بخشهایی باقی موندهحالاچه بخشهایی باقی مونده', 'https://t.me/c/1142372981/190207https://t.me/c/1142372981/190207https://t.me/c/1142372981/190207https://t.me/c/1142372981/190207https://t.me/c/1142372981/190207https://t.me/c/1142372981/190207https://t.me/c/1142372981/190207https://t.me/c/1142372981/190207', 'https://t.me/c/1142372981/190207https://t.me/c/1142372981/190207https://t.me/c/1142372981/190207https://t.me/c/1142372981/190207https://t.me/c/1142372981/190207'),
 (8, 3, 'en', '', '', ''),
 (9, 3, 'az', '', '', ''),
@@ -455,6 +455,30 @@ ALTER TABLE `room_reviews`
 --
 ALTER TABLE `room_translations`
   ADD CONSTRAINT `fk_room_translation` FOREIGN KEY (`room_id`) REFERENCES `rooms` (`id`) ON DELETE CASCADE;
+
+--
+-- Table structure for table `bookings`
+--
+CREATE TABLE IF NOT EXISTS `bookings` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `room_id` int(11) NOT NULL,
+  `guest_name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `phone` varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `email` varchar(150) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `check_in` date NOT NULL,
+  `check_out` date NOT NULL,
+  `guests` tinyint(3) UNSIGNED NOT NULL DEFAULT 1,
+  `nights` int(11) NOT NULL,
+  `total_price` decimal(12,2) NOT NULL,
+  `notes` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `admin_note` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status` enum('pending','confirmed','cancelled') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_room_dates` (`room_id`, `check_in`, `check_out`),
+  KEY `idx_status` (`status`),
+  CONSTRAINT `fk_booking_room` FOREIGN KEY (`room_id`) REFERENCES `rooms` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

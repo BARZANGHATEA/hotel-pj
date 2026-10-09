@@ -1,6 +1,6 @@
 <?php
 // Script to run database updates for blog functionality
-require_once '../config/db.php';
+require_once 'auth-check.php'; // فقط ادمین وارد شده
 
 header('Content-Type: text/html; charset=utf-8');
 echo "<!DOCTYPE html>
@@ -22,13 +22,6 @@ echo "<!DOCTYPE html>
         <h1>بروزرسانی ساختار پایگاه داده</h1>
 ";
 
-// Check if user is admin
-session_start();
-if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
-    echo "<div class='error'>دسترسی غیرمجاز. لطفاً ابتدا وارد سیستم شوید.</div>";
-    echo "</div></body></html>";
-    exit;
-}
 
 // Read the SQL update file
 $sql_file = '../config/update_blog_table.sql';

@@ -60,6 +60,7 @@ $stmt->close();
 
  // رسیدگی به درخواست حذف
 if (isset($_GET['delete']) && !empty($_GET['delete'])) {
+    verify_csrf();
     $post_id_to_delete = intval($_GET['delete']);
 
     // حذف تصویر مقاله از سرور
@@ -67,8 +68,8 @@ if (isset($_GET['delete']) && !empty($_GET['delete'])) {
     $stmt->bind_param("i", $post_id_to_delete);
     $stmt->execute();
     $result = $stmt->get_result()->fetch_assoc();
-    if ($result && file_exists('../uploads/blog/' . $result['image'])) {
-        unlink('../uploads/blog/' . $result['image']);
+    if ($result) {
+        safe_unlink('../uploads/blog/', $result['image']);
     }
     $stmt->close();
     
@@ -99,9 +100,7 @@ $has_updated_at_translations = columnExists($conn, 'blog_post_translations', 'up
 
 // بخش اصلاح شده برای پردازش فرم
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // دیباگ: بررسی داده‌های دریافتی
-    error_log("POST Data: " . print_r($_POST, true));
-    error_log("FILES Data: " . print_r($_FILES, true));
+    verify_csrf();
     
     $translations = $_POST['translations'] ?? [];
     $categories = $_POST['categories'] ?? '';
@@ -125,37 +124,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit();
     }
 
-    // مدیریت آپلود تصویر شاخص
-    $image_name = $_POST['existing_image'] ?? '';
+    // مدیریت آپلود تصویر شاخص (در حالت ویرایش، تصویر فعلی از دیتابیس خوانده می‌شود)
+    $image_name = '';
+    if (!empty($_POST['post_id'])) {
+        $img_stmt = $conn->prepare("SELECT image FROM blog_posts WHERE id = ?");
+        $img_id = intval($_POST['post_id']);
+        $img_stmt->bind_param("i", $img_id);
+        $img_stmt->execute();
+        $image_name = $img_stmt->get_result()->fetch_assoc()['image'] ?? '';
+        $img_stmt->close();
+    }
+    $previous_image = $image_name;
     
-    if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
-        $upload_dir = '../uploads/blog/';
-        
-        // بررسی وجود پوشه و ایجاد آن در صورت عدم وجود
-        if (!is_dir($upload_dir)) {
-            mkdir($upload_dir, 0755, true);
-        }
-        
-        // تولید نام فایل یکتا
-        $file_extension = pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION);
-        $image_name = time() . '_' . uniqid() . '.' . $file_extension;
-        
-        // بررسی نوع فایل
-        $allowed_types = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-        if (in_array(strtolower($file_extension), $allowed_types)) {
-            if (move_uploaded_file($_FILES['image']['tmp_name'], $upload_dir . $image_name)) {
-                // آپلود موفق
-                error_log("Image uploaded successfully: " . $image_name);
-            } else {
-                $_SESSION['flash_message'] = "خطا در آپلود تصویر.";
-                header("Location: manage-blog.php");
-                exit();
-            }
-        } else {
-            $_SESSION['flash_message'] = "نوع فایل مجاز نیست. فقط JPG, PNG, GIF, WEBP مجاز است.";
+    if (isset($_FILES['image']) && $_FILES['image']['error'] !== UPLOAD_ERR_NO_FILE) {
+        // بررسی نوع واقعی فایل (نه فقط پسوند) و ذخیره با نام تصادفی
+        $uploaded = save_uploaded_image($_FILES['image'], '../uploads/blog/');
+        if ($uploaded === null) {
+            $_SESSION['flash_message'] = "تصویر نامعتبر است. فقط JPG, PNG, GIF, WEBP تا ۱۰ مگابایت مجاز است.";
             header("Location: manage-blog.php");
             exit();
         }
+        $image_name = $uploaded;
     }
 
     try {
@@ -239,7 +228,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
         } else {
             // افزودن مقاله جدید
-            if (empty($image_name) && !isset($_FILES['image'])) {
+            if ($image_name === '') {
                 throw new Exception("تصویر شاخص الزامی است.");
             }
             
@@ -272,9 +261,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $new_post_id = $stmt->insert_id;
             $stmt->close();
 
-            // درج ترجمه‌ها
-            foreach ($translations as $lang => $data) {
-                if (!empty($data['title']) || !empty($data['content'])) {
+            // درج ترجمه‌ها (برای همه زبان‌ها یک ردیف ساخته می‌شود تا ویرایش بعدی ساده باشد)
+            $insert_stmt = $conn->prepare("INSERT INTO blog_post_translations (post_id, lang_code, title, summary, content) VALUES (?, ?, ?, ?, ?)");
+            foreach (['fa', 'en', 'az'] as $lang) {
+                $title = trim($translations[$lang]['title'] ?? '');
+                $summary = trim($translations[$lang]['summary'] ?? '');
+                $content = $translations[$lang]['content'] ?? '';
+                $insert_stmt->bind_param("issss", $new_post_id, $lang, $title, $summary, $content);
+                if (!$insert_stmt->execute()) {
+                    throw new Exception("خطا در درج ترجمه مقاله: " . $insert_stmt->error);
+                }
+            }
+            $insert_stmt->close();
+
+            $_SESSION['flash_message'] = $status === 'published' ? "مقاله با موفقیت منتشر شد." : "مقاله به عنوان پیش‌نویس ذخیره شد.";
+        }
+
+        $conn->commit();
+        // تصویر قبلی اگر جایگزین شده باشد حذف می‌شود
+        if ($previous_image !== '' && $previous_image !== $image_name) {
+            safe_unlink('../uploads/blog/', $previous_image);
+        }
+    } catch (Throwable $ex) {
+        $conn->rollback();
+        if ($image_name !== $previous_image) {
+            safe_unlink('../uploads/blog/', $image_name);
+        }
+        error_log('manage-blog: ' . $ex->getMessage());
+        $_SESSION['flash_message'] = "خطا در ذخیره مقاله: " . $ex->getMessage();
+    }
+
+    header("Location: manage-blog.php");
+    exit();
+}
+
+// حالت ویرایش
 if (isset($_GET['edit']) && !empty($_GET['edit'])) {
     $edit_mode = true;
     $post_id_to_edit = intval($_GET['edit']);
@@ -294,10 +315,10 @@ if (isset($_GET['edit']) && !empty($_GET['edit'])) {
     }
     $stmt->close();
 }
-?>
 
-<!-- TinyMCE Rich Text Editor -->
-<script src="https://cdn.tiny.cloud/1/3fhpj4fbwaga5z3i2uk4yyi9bbfzl62i3nnykuzxyesrio3v/tinymce/8/tinymce.min.js" referrerpolicy="origin"></script>
+// هدر پنل (TinyMCE هم در هدر بارگذاری می‌شود)
+include_once 'partials/header.php';
+?>
 
 <!-- Page Header -->
 <div class="flex items-center justify-between mb-8">
@@ -324,7 +345,7 @@ if (isset($_GET['edit']) && !empty($_GET['edit'])) {
         <svg class="w-5 h-5 ml-2" fill="currentColor" viewBox="0 0 24 24">
             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
         </svg>
-        <?php echo $flash_message; ?>
+        <?php echo e($flash_message); ?>
     </div>
 </div>
 <?php endif; ?>
@@ -371,6 +392,7 @@ if (isset($_GET['edit']) && !empty($_GET['edit'])) {
 <!-- Blog Form -->
 <div id="blogForm" class="<?php echo $edit_mode ? 'block' : 'hidden'; ?> bg-white rounded-xl shadow-sm border border-gray-200 p-8 mb-8">
     <form action="manage-blog.php" method="POST" enctype="multipart/form-data" class="space-y-6">
+        <?php echo csrf_field(); ?>
         
         <?php if ($edit_mode): ?>
             <input type="hidden" name="post_id" value="<?php echo $post_data['id']; ?>">
@@ -392,7 +414,6 @@ if (isset($_GET['edit']) && !empty($_GET['edit'])) {
                     <img src="../uploads/blog/<?php echo $post_data['image']; ?>" 
                          class="w-48 h-32 object-cover rounded-lg border border-gray-200" 
                          alt="Post Image">
-                    <input type="hidden" name="existing_image" value="<?php echo $post_data['image']; ?>">
                 </div>
             <?php endif; ?>
         </div>
@@ -743,6 +764,7 @@ if (isset($_GET['edit']) && !empty($_GET['edit'])) {
 </div>
 
 <!-- Include Blog Admin JavaScript -->
+<script>window.CSRF_TOKEN = <?php echo json_encode(csrf_token()); ?>;</script>
 <script src="../assets/js/blog-admin.js"></script>
 
 <!-- Custom Styles for Rich Editor -->
@@ -872,9 +894,7 @@ if (isset($_GET['edit']) && !empty($_GET['edit'])) {
     // Execute the update queries
     fetch('update_database.php', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      }
+      body: new URLSearchParams({ csrf_token: window.CSRF_TOKEN })
     })
     .then(response => response.json())
     .then(data => {

@@ -1,4 +1,22 @@
-<?php include_once 'includes/header.php'; ?>
+<?php
+include_once 'includes/header.php';
+
+// فیلتر قیمت و مرتب‌سازی (از طریق پارامترهای GET)
+$price_ranges = [
+    ''     => ['قیمت: همه', null, null],
+    'low'  => ['کمتر از ۵۰۰,۰۰۰ تومان', null, 500000],
+    'mid'  => ['۵۰۰,۰۰۰ - ۱,۰۰۰,۰۰۰ تومان', 500000, 1000000],
+    'high' => ['بیشتر از ۱,۰۰۰,۰۰۰ تومان', 1000000, null],
+];
+$sort_options = [
+    'newest'     => ['جدیدترین', 'r.id DESC'],
+    'price_asc'  => ['ارزان‌ترین', 'r.price_per_night ASC'],
+    'price_desc' => ['گران‌ترین', 'r.price_per_night DESC'],
+];
+$price_filter = isset($_GET['price'], $price_ranges[$_GET['price']]) ? $_GET['price'] : '';
+$sort = isset($_GET['sort'], $sort_options[$_GET['sort']]) ? $_GET['sort'] : 'newest';
+[, $min_price, $max_price] = $price_ranges[$price_filter];
+?>
 
 <!-- Rooms Hero Section -->
 <section class="relative min-h-[60vh] flex items-center justify-center overflow-hidden bg-gradient-to-br from-hotel-dark via-hotel-blue to-hotel-dark">
@@ -24,57 +42,56 @@
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex flex-wrap items-center justify-between gap-4">
             <!-- Filter Options -->
-            <div class="flex flex-wrap items-center gap-4">
+            <form method="GET" action="rooms.php" class="flex flex-wrap items-center gap-4">
+                <input type="hidden" name="lang" value="<?php echo e($lang_code); ?>">
                 <span class="text-hotel-dark font-semibold">فیلتر بر اساس:</span>
-                <select class="bg-white border border-hotel-gold/30 rounded-lg px-4 py-2 text-hotel-dark focus:outline-none focus:border-hotel-gold transition-colors duration-300">
-                    <option>همه اتاق‌ها</option>
-                    <option>اتاق استاندارد</option>
-                    <option>اتاق دلوکس</option>
-                    <option>سوئیت</option>
+                <select name="price" onchange="this.form.submit()" class="bg-white border border-hotel-gold/30 rounded-lg px-4 py-2 text-hotel-dark focus:outline-none focus:border-hotel-gold transition-colors duration-300">
+                    <?php foreach ($price_ranges as $key => $range): ?>
+                        <option value="<?php echo e($key); ?>" <?php echo $key === $price_filter ? 'selected' : ''; ?>><?php echo e($range[0]); ?></option>
+                    <?php endforeach; ?>
                 </select>
-                <select class="bg-white border border-hotel-gold/30 rounded-lg px-4 py-2 text-hotel-dark focus:outline-none focus:border-hotel-gold transition-colors duration-300">
-                    <option>قیمت: همه</option>
-                    <option>کمتر از ۵۰۰,۰۰۰ تومان</option>
-                    <option>۵۰۰,۰۰۰ - ۱,۰۰۰,۰۰۰ تومان</option>
-                    <option>بیشتر از ۱,۰۰۰,۰۰۰ تومان</option>
+                <select name="sort" onchange="this.form.submit()" class="bg-white border border-hotel-gold/30 rounded-lg px-4 py-2 text-hotel-dark focus:outline-none focus:border-hotel-gold transition-colors duration-300">
+                    <?php foreach ($sort_options as $key => $opt): ?>
+                        <option value="<?php echo e($key); ?>" <?php echo $key === $sort ? 'selected' : ''; ?>><?php echo e($opt[0]); ?></option>
+                    <?php endforeach; ?>
                 </select>
-            </div>
-            
-            <!-- View Toggle -->
-            <div class="flex items-center gap-2">
-                <span class="text-hotel-dark text-sm">نمایش:</span>
-                <button class="p-2 bg-hotel-gold text-hotel-dark rounded-lg">
-                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/>
-                    </svg>
-                </button>
-                <button class="p-2 bg-white border border-hotel-gold/30 text-hotel-dark rounded-lg hover:bg-hotel-gold/10 transition-colors duration-300">
-                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M4 4h4v4H4V4zm6 0h4v4h-4V4zm6 0h4v4h-4V4zM4 10h4v4H4v-4zm6 0h4v4h-4v-4zm6 0h4v4h-4v-4zM4 16h4v4H4v-4zm6 0h4v4h-4v-4zm6 0h4v4h-4v-4z"/>
-                    </svg>
-                </button>
-            </div>
+                <noscript><button type="submit" class="bg-hotel-gold text-hotel-dark px-4 py-2 rounded-lg font-semibold">اعمال</button></noscript>
+            </form>
         </div>
     </div>
 </section>
 
 <!-- Rooms Grid Section -->
-<section class="py-20 bg-white">
+<section id="rooms-grid" class="py-20 bg-white scroll-mt-20">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <!-- Rooms Grid -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             <?php
             // واکشی تمام اتاق‌ها به همراه ترجمه آن‌ها
-            $stmt = $conn->prepare("
-                SELECT r.id, r.image, r.price_per_night, rt.name, rt.short_description
+            $sql = "
+                SELECT r.id, r.image, r.price_per_night, rt.name, rt.short_description,
+                       (SELECT ROUND(AVG(rv.rating), 1) FROM room_reviews rv WHERE rv.room_id = r.id AND rv.status = 'approved') AS avg_rating
                 FROM rooms r
                 JOIN room_translations rt ON r.id = rt.room_id
-                WHERE rt.lang_code = ?
-                ORDER BY r.id ASC
-            ");
-            $stmt->bind_param("s", $lang_code);
+                WHERE rt.lang_code = ?";
+            $types = "s";
+            $params = [$lang_code];
+            if ($min_price !== null) { $sql .= " AND r.price_per_night >= ?"; $types .= "d"; $params[] = $min_price; }
+            if ($max_price !== null) { $sql .= " AND r.price_per_night < ?";  $types .= "d"; $params[] = $max_price; }
+            $sql .= " ORDER BY " . $sort_options[$sort][1]; // مقدار از لیست سفید انتخاب می‌شود
+
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param($types, ...$params);
             $stmt->execute();
             $result = $stmt->get_result();
+            if ($result->num_rows === 0):
+            ?>
+            <div class="col-span-full text-center py-16 text-gray-600 text-lg">
+                اتاقی با این مشخصات یافت نشد.
+                <a href="rooms.php?lang=<?php echo e($lang_code); ?>" class="text-hotel-dark underline mr-2">نمایش همه اتاق‌ها</a>
+            </div>
+            <?php
+            endif;
 
             while ($room = $result->fetch_assoc()):
             ?>
@@ -87,23 +104,10 @@
                          alt="<?php echo htmlspecialchars($room['name']); ?>"
                          class="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-500">
                     
-                    <!-- Overlay with Quick Actions -->
-                    <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                        <div class="flex space-x-4 space-x-reverse">
-                            <button class="bg-white/20 backdrop-blur-sm text-white p-3 rounded-full hover:bg-white/30 transition-colors duration-300">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                                </svg>
-                            </button>
-                            <button class="bg-white/20 backdrop-blur-sm text-white p-3 rounded-full hover:bg-white/30 transition-colors duration-300">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                    
+                    <!-- Overlay -->
+                    <a href="room-details.php?id=<?php echo $room['id']; ?>&lang=<?php echo e($lang_code); ?>" aria-label="<?php echo e($room['name']); ?>"
+                       class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></a>
+
                     <!-- Price Badge -->
                     <div class="absolute top-4 right-4 bg-hotel-gold text-hotel-dark px-3 py-1 rounded-full text-sm font-bold">
                         <?php echo number_format($room['price_per_night']); ?> تومان
@@ -115,6 +119,9 @@
                     <h3 class="font-playfair text-2xl font-bold text-hotel-dark mb-3 group-hover:text-hotel-gold transition-colors duration-300">
                         <?php echo htmlspecialchars($room['name']); ?>
                     </h3>
+                    <?php if ($room['avg_rating']): ?>
+                    <div class="text-sm text-hotel-dark mb-2"><span class="text-hotel-gold">★</span> <?php echo e($room['avg_rating']); ?> از ۵</div>
+                    <?php endif; ?>
                     <p class="text-gray-600 mb-4 leading-relaxed">
                         <?php echo htmlspecialchars($room['short_description']); ?>
                     </p>
@@ -147,21 +154,16 @@
                            class="flex-1 bg-hotel-dark text-white text-center px-4 py-3 rounded-lg hover:bg-hotel-dark/90 transition-colors duration-300 font-semibold">
                             مشاهده جزئیات
                         </a>
-                        <button class="bg-hotel-gold text-hotel-dark px-4 py-3 rounded-lg hover:bg-hotel-gold/90 transition-colors duration-300 font-semibold">
+                        <a href="room-details.php?id=<?php echo $room['id']; ?>&lang=<?php echo e($lang_code); ?>#booking"
+                           class="bg-hotel-gold text-hotel-dark px-4 py-3 rounded-lg hover:bg-hotel-gold/90 transition-colors duration-300 font-semibold">
                             رزرو سریع
-                        </button>
+                        </a>
                     </div>
                 </div>
             </div>
             <?php endwhile; $stmt->close(); ?>
         </div>
 
-        <!-- Load More Button -->
-        <div class="text-center mt-12">
-            <button class="bg-hotel-gold text-hotel-dark px-8 py-3 rounded-lg hover:bg-hotel-gold/90 transition-colors duration-300 font-bold">
-                نمایش اتاق‌های بیشتر
-            </button>
-        </div>
     </div>
 </section>
 
@@ -209,9 +211,9 @@
                             <span>چک‌اوت تا ساعت ۱۴</span>
                         </li>
                     </ul>
-                    <button class="w-full mt-4 bg-hotel-gold text-hotel-dark py-2 rounded-lg hover:bg-hotel-gold/90 transition-colors duration-300 font-bold">
+                    <a href="#rooms-grid" class="block text-center w-full mt-4 bg-hotel-gold text-hotel-dark py-2 rounded-lg hover:bg-hotel-gold/90 transition-colors duration-300 font-bold">
                         رزرو کنید
-                    </button>
+                    </a>
                 </div>
             </div>
 
@@ -243,9 +245,9 @@
                             <span>بازی‌های کودکان</span>
                         </li>
                     </ul>
-                    <button class="w-full mt-4 bg-hotel-gold text-hotel-dark py-2 rounded-lg hover:bg-hotel-gold/90 transition-colors duration-300 font-bold">
+                    <a href="#rooms-grid" class="block text-center w-full mt-4 bg-hotel-gold text-hotel-dark py-2 rounded-lg hover:bg-hotel-gold/90 transition-colors duration-300 font-bold">
                         رزرو کنید
-                    </button>
+                    </a>
                 </div>
             </div>
 
@@ -277,9 +279,9 @@
                             <span>چاپ و فکس رایگان</span>
                         </li>
                     </ul>
-                    <button class="w-full mt-4 bg-hotel-gold text-hotel-dark py-2 rounded-lg hover:bg-hotel-gold/90 transition-colors duration-300 font-bold">
+                    <a href="#rooms-grid" class="block text-center w-full mt-4 bg-hotel-gold text-hotel-dark py-2 rounded-lg hover:bg-hotel-gold/90 transition-colors duration-300 font-bold">
                         رزرو کنید
-                    </button>
+                    </a>
                 </div>
             </div>
         </div>

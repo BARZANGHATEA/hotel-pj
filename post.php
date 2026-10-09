@@ -1,5 +1,5 @@
 <?php
-include_once 'includes/header.php';
+require_once 'includes/bootstrap.php'; // دیتابیس، سشن و زبان (بدون خروجی HTML)
 
 // ۱. گرفتن ID مقاله از URL و اعتبارسنجی آن
 $post_id = 0;
@@ -16,7 +16,7 @@ $stmt = $conn->prepare("
     SELECT p.image, p.created_at, pt.title, pt.content
     FROM blog_posts p
     JOIN blog_post_translations pt ON p.id = pt.post_id
-    WHERE p.id = ? AND pt.lang_code = ?
+    WHERE p.id = ? AND pt.lang_code = ? AND p.status = 'published'
 ");
 $stmt->bind_param("is", $post_id, $lang_code);
 $stmt->execute();
@@ -24,13 +24,18 @@ $result = $stmt->get_result();
 
 if ($result->num_rows === 0) {
     // اگر مقاله‌ای با این ID پیدا نشد
-    echo "<div class='max-w-4xl mx-auto px-4 py-20 text-center'><p class='text-xl text-gray-600'>مقاله مورد نظر یافت نشد.</p></div>";
+    http_response_code(404);
+    include_once 'includes/header.php';
+    echo "<div class='max-w-4xl mx-auto px-4 py-40 text-center'><p class='text-xl text-gray-600'>مقاله مورد نظر یافت نشد.</p></div>";
     include_once 'includes/footer.php';
     exit();
 }
 
 $post = $result->fetch_assoc();
 $stmt->close();
+
+$page_title = $post['title'];
+include_once 'includes/header.php';
 
 $post_date = date("d F Y", strtotime($post['created_at']));
 ?>
@@ -74,7 +79,7 @@ $post_date = date("d F Y", strtotime($post['created_at']));
         <!-- Post Content -->
         <div class="prose prose-lg max-w-none" x-data x-intersect="$el.classList.add('animate-fade-in-up')">
             <div class="text-gray-700 leading-relaxed text-lg space-y-6">
-                <?php echo nl2br(htmlspecialchars($post['content'])); ?>
+                <?php echo safe_html($post['content']); ?>
             </div>
         </div>
 
@@ -136,7 +141,7 @@ $post_date = date("d F Y", strtotime($post['created_at']));
                 SELECT p.id, p.image, p.created_at, pt.title, pt.summary
                 FROM blog_posts p
                 JOIN blog_post_translations pt ON p.id = pt.post_id
-                WHERE pt.lang_code = ? AND p.id != ?
+                WHERE pt.lang_code = ? AND p.id != ? AND p.status = 'published'
                 ORDER BY p.created_at DESC
                 LIMIT 3
             ");

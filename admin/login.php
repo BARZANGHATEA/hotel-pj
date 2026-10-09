@@ -5,10 +5,19 @@ require_once '../config/db.php';
 
 $error_message = ''; // متغیری برای ذخیره پیام‌های خطا
 
+// محدودیت تلاش ناموفق: بعد از ۵ تلاش اشتباه، ۵ دقیقه ورود قفل می‌شود (به ازای هر سشن)
+$max_attempts = 5;
+$lockout_seconds = 300;
+$attempts = $_SESSION['login_attempts'] ?? 0;
+$locked_until = $_SESSION['login_locked_until'] ?? 0;
+
 // بررسی می‌کنیم که آیا فرم ارسال شده است (متد POST)
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = $_POST['username'];
-    $password = $_POST['password'];
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $locked_until > time()) {
+    $error_message = "به دلیل تلاش‌های ناموفق متعدد، لطفاً " . ceil(($locked_until - time()) / 60) . " دقیقه دیگر دوباره تلاش کنید.";
+} elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    verify_csrf();
+    $username = trim((string) ($_POST['username'] ?? ''));
+    $password = (string) ($_POST['password'] ?? '');
 
     // برای جلوگیری از SQL Injection، از prepared statements استفاده می‌کنیم
     $stmt = $conn->prepare("SELECT id, username, password FROM admins WHERE username = ?");
@@ -22,7 +31,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         // رمز عبور وارد شده را با رمز عبور هش شده در دیتابیس مقایسه می‌کنیم
         if (password_verify($password, $admin['password'])) {
-            // اگر رمز عبور صحیح بود
+            // اگر رمز عبور صحیح بود: شناسه سشن را عوض می‌کنیم (جلوگیری از Session Fixation)
+            session_regenerate_id(true);
+            unset($_SESSION['login_attempts'], $_SESSION['login_locked_until']);
             $_SESSION['admin_id'] = $admin['id'];
             $_SESSION['admin_username'] = $admin['username'];
             
@@ -39,6 +50,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     
     $stmt->close();
+
+    if ($error_message !== '') {
+        $attempts++;
+        $_SESSION['login_attempts'] = $attempts;
+        if ($attempts >= $max_attempts) {
+            $_SESSION['login_locked_until'] = time() + $lockout_seconds;
+            $_SESSION['login_attempts'] = 0;
+        }
+    }
 }
 
 // اگر ادمین از قبل لاگین کرده بود، مستقیم به داشبورد برود
@@ -96,12 +116,13 @@ if (isset($_SESSION['admin_id'])) {
                             <svg class="w-5 h-5 ml-2" fill="currentColor" viewBox="0 0 24 24">
                                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
                             </svg>
-                            <?php echo $error_message; ?>
+                            <?php echo e($error_message); ?>
                         </div>
                     </div>
                 <?php endif; ?>
 
                 <form action="login.php" method="POST" class="space-y-6">
+                    <?php echo csrf_field(); ?>
                     <!-- Username Field -->
                     <div>
                         <label for="username" class="block text-sm font-semibold text-gray-700 mb-2">نام کاربری</label>

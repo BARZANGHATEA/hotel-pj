@@ -1,57 +1,12 @@
 <?php
-require_once 'config/db.php'; // اتصال به دیتابیس و شروع سشن
-
-// --- منطق انتخاب زبان ---
-$allowed_langs = ['fa', 'en', 'az'];
-$lang_code = 'fa'; // زبان پیش‌فرض
-
-if (isset($_GET['lang']) && in_array($_GET['lang'], $allowed_langs)) {
-    $lang_code = $_GET['lang'];
-    $_SESSION['lang'] = $lang_code;
-} elseif (isset($_SESSION['lang'])) {
-    $lang_code = $_SESSION['lang'];
-}
-
-// --- کد جدید: پردازش فرم ثبت نظر ---
-$review_message = '';
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_review'])) {
-    $customer_name = htmlspecialchars($_POST['customer_name']);
-    $rating = intval($_POST['rating']);
-    $comment = htmlspecialchars($_POST['comment']);
-    // room_id از قبل در متغیر $room_id موجود است
-
-    if (!empty($customer_name) && $rating >= 1 && $rating <= 5 && !empty($comment)) {
-        $stmt = $conn->prepare("INSERT INTO room_reviews (room_id, customer_name, rating, comment) VALUES (?, ?, ?, ?)");
-        $stmt->bind_param("isis", $room_id, $customer_name, $rating, $comment);
-        if ($stmt->execute()) {
-            $review_message = "<div class='alert success'>نظر شما با موفقیت ثبت شد و پس از تایید نمایش داده خواهد شد.</div>";
-        } else {
-            $review_message = "<div class='alert error'>خطایی در ثبت نظر رخ داد.</div>";
-        }
-        $stmt->close();
-    } else {
-        $review_message = "<div class='alert error'>لطفاً تمام فیلدها را به درستی پر کنید.</div>";
-    }
-}
-
-// --- واکشی نظرات تایید شده برای این اتاق ---
-$reviews_stmt = $conn->prepare("SELECT * FROM room_reviews WHERE room_id = ? AND status = 'approved' ORDER BY created_at DESC");
-$reviews_stmt->bind_param("i", $room_id);
-$reviews_stmt->execute();
-$reviews_result = $reviews_stmt->get_result();
-
-// بارگذاری فایل زبان مربوطه
-require_once "lang/{$lang_code}.php";
-
-// تعیین جهت صفحه بر اساس زبان
-$page_dir = ($lang_code === 'fa') ? 'rtl' : 'ltr';
+require_once __DIR__ . '/bootstrap.php'; // دیتابیس، سشن و زبان
 ?>
 <!DOCTYPE html>
 <html lang="<?php echo $lang_code; ?>" dir="<?php echo $page_dir; ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>هتل مجلل پالاس</title>
+    <title><?php echo isset($page_title) ? e($page_title) . ' | ' : ''; ?>هتل سیروان</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
@@ -59,8 +14,9 @@ $page_dir = ($lang_code === 'fa') ? 'rtl' : 'ltr';
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Alpine.js -->
-    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- Alpine.js (+ افزونه intersect برای انیمیشن‌های x-intersect) -->
+    <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/intersect@3.14.1/dist/cdn.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
     
     <!-- Custom Tailwind Configuration -->
     <script>
@@ -150,7 +106,7 @@ $page_dir = ($lang_code === 'fa') ? 'rtl' : 'ltr';
                     </a>
                     <a href="about.php?lang=<?php echo $lang_code; ?>" 
                        class="text-hotel-cream hover:text-hotel-gold transition-colors duration-300 relative group px-3 py-2">
-                        درباره ما
+                        <?php echo $lang['nav_about']; ?>
                         <span class="absolute bottom-0 left-0 w-0 h-0.5 bg-hotel-gold transition-all duration-300 group-hover:w-full"></span>
                     </a>
                     <a href="contact.php?lang=<?php echo $lang_code; ?>" 
@@ -205,7 +161,7 @@ $page_dir = ($lang_code === 'fa') ? 'rtl' : 'ltr';
                     </a>
                     <a href="about.php?lang=<?php echo $lang_code; ?>" 
                        class="block px-3 py-2 text-hotel-cream hover:text-hotel-gold hover:bg-hotel-dark/50 rounded-md transition-colors duration-300">
-                        درباره ما
+                        <?php echo $lang['nav_about']; ?>
                     </a>
                     <a href="rooms.php?lang=<?php echo $lang_code; ?>" 
                        class="block px-3 py-2 text-hotel-cream hover:text-hotel-gold hover:bg-hotel-dark/50 rounded-md transition-colors duration-300">
