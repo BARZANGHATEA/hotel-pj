@@ -21,3 +21,6 @@ $conn->set_charset("utf8mb4");
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
 }
+
+// توابع کمکی مشترک (CSRF، آپلود امن، ...)
+require_once __DIR__ . '/../includes/functions.php';

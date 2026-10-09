@@ -1,6 +1,6 @@
 <?php
 // فایل اتصال به دیتابیس را فراخوانی می‌کنیم تا session_start() اجرا شود
-require_once '../config/db.php';
+require_once __DIR__ . '/../config/db.php';
 
 // بررسی می‌کنیم آیا session مربوط به ادمین ست شده است یا نه
 if (!isset($_SESSION['admin_id'])) {

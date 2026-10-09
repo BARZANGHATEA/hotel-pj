@@ -1,5 +1,6 @@
 <?php
-require_once '../config/db.php';
+require_once 'auth-check.php'; // فقط ادمین وارد شده
+header('Content-Type: application/json; charset=utf-8');
 
 // Function to check if a column exists in a table
 function columnExists($conn, $table, $column) {

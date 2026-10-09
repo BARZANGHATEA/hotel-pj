@@ -456,7 +456,7 @@ function confirmDelete(postId, title) {
         
         // Redirect after a short delay to show loading
         setTimeout(() => {
-            window.location.href = `manage-blog.php?delete=${postId}`;
+            window.location.href = `manage-blog.php?delete=${encodeURIComponent(postId)}&csrf_token=${encodeURIComponent(window.CSRF_TOKEN || '')}`;
         }, 500);
     }
 }
